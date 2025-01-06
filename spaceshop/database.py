@@ -1,35 +1,46 @@
 import os
-from pinecone import Pinecone
+from pinecone import Pinecone, ServerlessSpec
 from langchain_community.embeddings import OpenAIEmbeddings
 from config import PINECONE_API_KEY, OPENAI_API_KEY
 
-# Initialize Pinecone with the new approach
+# Add debug print
+print(f"Using PINECONE_API_KEY: {PINECONE_API_KEY is not None}")
+
+# Initialize Pinecone
 pc = Pinecone(api_key=PINECONE_API_KEY)
 
-# Create an index
+# Create an index with proper spec for free tier
 index_name = "jupiter-moons"
 if index_name not in pc.list_indexes().names():
     pc.create_index(
         name=index_name,
-        dimension=1536,  # OpenAI embeddings are 1536 dimensions
-        metric='cosine'
+        spec=ServerlessSpec(
+            cloud="aws",
+            region="us-east-1"
+        ),
+        dimension=1536,  # OpenAI embeddings dimension
+        metric="cosine"
     )
 
 # Connect to the index
 index = pc.Index(index_name)
 
 def create_and_store_embeddings(data):
-    # Initialize OpenAI embeddings
     embeddings = OpenAIEmbeddings(api_key=OPENAI_API_KEY)
-
-    # Iterate over your data and create embeddings
+    
     for idx, row in data.iterrows():
-        # Using 'Document Content' column from your TSV file
-        text = row['Document Content']
+        # Using the correct column names from your TSV file
+        text = f"{row['Moon Name']}: {row['Document Title']} - {row['Document Content']}"
         embedding = embeddings.embed_query(text)
         
-        # Store the embedding in Pinecone
-        index.upsert(vectors=[(str(idx), embedding, {"text": text})])
+        metadata = {
+            "moon_name": row['Moon Name'],
+            "title": row['Document Title'],
+            "source": row['Source URL']
+        }
+        
+        # Store with metadata
+        index.upsert(vectors=[(str(idx), embedding, metadata)])
 
 # Example usage
 if __name__ == "__main__":
