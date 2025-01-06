@@ -92,7 +92,7 @@ class State(rx.State):
     def handle_input_change(self, value: str):
         self.current_input = value
 
-    async def handle_submit(self, _):
+    async def handle_submit(self):
         if not self.current_input.strip():
             return
 

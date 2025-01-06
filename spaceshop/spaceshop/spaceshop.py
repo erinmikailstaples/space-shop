@@ -32,7 +32,11 @@ def index() -> rx.Component:
                         State.messages,
                         lambda message: rx.box(
                             rx.text(
-                                f"{'You: ' if message.is_user else '🛸 AI: '}{message.text}",
+                                rx.cond(
+                                    message.is_user,
+                                    f"You: {message.text}",
+                                    f"🛸 AI: {message.text}"
+                                ),
                                 color=rx.cond(message.is_user, GLOW_COLOR, TEXT_COLOR),
                             ),
                             width="100%",
