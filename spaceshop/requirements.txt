@@ -1,5 +1,6 @@
 openai
 langchain
-pinecone
 pinecone-client
 pandas
+reflex==0.3.6
+python-dotenv
