@@ -1,7 +1,7 @@
 import reflex as rx
 from datetime import datetime
-from pinecone import Pinecone
-from langchain_community.embeddings import OpenAIEmbeddings
+from pinecone import Pinecone, Index
+from langchain.embeddings.openai import OpenAIEmbeddings
 from config import PINECONE_API_KEY, OPENAI_API_KEY
 
 # Styles for our space dashboard
@@ -96,18 +96,22 @@ class State(rx.State):
         if not self.current_input.strip():
             return
 
+        # Store the user's message
         user_message = self.current_input
         self.messages.append(Message(
             text=user_message,
             is_user=True
         ))
         
+        # Clear input and show processing
         self.current_input = ""
         self.processing = True
 
         try:
+            # Get response from database
             response = self.query_database(user_message)
             
+            # Add system response
             self.messages.append(Message(
                 text=response,
                 is_user=False
@@ -117,75 +121,3 @@ class State(rx.State):
             self.messages.append(Message(text=error_msg))
         
         self.processing = False
-
-def index():
-    return rx.box(
-        rx.vstack(
-            # Header
-            rx.heading("JUPITER MOONS NAVIGATION SYSTEM", style=styles["header"]),
-            
-            # Status Bar
-            rx.box(
-                rx.hstack(
-                    rx.text(f"System Status: {State.system_status}"),
-                    rx.text(f"Stardate: {State.current_time}"),
-                    rx.text("Location: Jupiter Orbital Zone"),
-                ),
-                style=styles["status"]
-            ),
-            
-            # Chat messages display
-            rx.box(
-                rx.vstack(
-                    *[
-                        rx.box(
-                            rx.text(
-                                f"{'You: ' if message.is_user else '🛸 AI: '}{message.text}",
-                                color=GLOW_COLOR if message.is_user else TEXT_COLOR,
-                            ),
-                            width="100%",
-                            padding="1em",
-                            border_radius="8px",
-                            background=ACCENT_BLUE if message.is_user else SPACE_BLUE,
-                            margin_bottom="0.5em",
-                        )
-                        for message in State.messages
-                    ],
-                    align_items="start",
-                    width="100%",
-                    overflow_y="auto",
-                    max_height="60vh",
-                ),
-                style=styles["terminal"]
-            ),
-            
-            # Input area with form handling
-            rx.hstack(
-                rx.input(
-                    value=State.current_input,
-                    placeholder="Ask about Jupiter's moons...",
-                    on_change=State.handle_input_change,
-                    is_disabled=State.processing,
-                    style=styles["input"]
-                ),
-                rx.button(
-                    "Send",
-                    on_click=State.handle_submit,
-                    is_disabled=State.processing,
-                    background=GLOW_COLOR,
-                    color=DARK_BLUE,
-                    _hover={"opacity": 0.8}
-                ),
-            ),
-            rx.spinner() if State.processing else None,
-            
-            spacing="4",
-            width="100%",
-            max_width="800px",
-            margin="0 auto",
-        ),
-        style=styles["dashboard"]
-    )
-
-app = rx.App()
-app.add_page(index)
