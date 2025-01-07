@@ -1,6 +1,6 @@
 import os
 from pinecone import Pinecone, Index, ServerlessSpec
-from langchain.embeddings.openai import OpenAIEmbeddings
+from langchain_community.embeddings import OpenAIEmbeddings
 from config import PINECONE_API_KEY, OPENAI_API_KEY
 
 # Add debug print

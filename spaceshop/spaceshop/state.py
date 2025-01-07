@@ -1,8 +1,9 @@
 import reflex as rx
 from datetime import datetime
 from pinecone import Pinecone, Index
-from langchain.embeddings.openai import OpenAIEmbeddings
+from langchain_community.embeddings import OpenAIEmbeddings
 from config import PINECONE_API_KEY, OPENAI_API_KEY
+from openai import OpenAI
 
 # Styles for our space dashboard
 DARK_BLUE = "#0d1b2a"
@@ -89,25 +90,22 @@ class State(rx.State):
         return response
 
     def enhance_text_with_openai(self, text: str) -> str:
-        import openai
+        from openai import OpenAI
 
-        openai.api_key = OPENAI_API_KEY
+        client = OpenAI(api_key=OPENAI_API_KEY)
 
         try:
-            response = openai.ChatCompletion.create(
+            response = client.completions.create(
                 model="gpt-3.5-turbo",
-                messages=[
-                    {"role": "system", "content": "You are a helpful assistant."},
-                    {"role": "user", "content": f"Enhance the following text to make it more engaging and informative to astronauts and space enthusiasts:\n\n{text}"}
-                ],
+                prompt=f"Enhance the following text to make it more engaging and informative:\n\n{text}",
                 max_tokens=150,
                 temperature=0.7
             )
-            enhanced_text = response['choices'][0]['message']['content'].strip()
+            enhanced_text = response.choices[0].text.strip()
             return enhanced_text
         except Exception as e:
             print(f"Error enhancing text with OpenAI: {e}")
-            return text  # Return original text if enhancement fails
+            return text
 
     def query_database(self, query_text: str) -> str:
         pc = Pinecone(api_key=PINECONE_API_KEY)
@@ -147,6 +145,9 @@ class State(rx.State):
         try:
             # Get response from database
             response = self.query_database(user_message)
+
+            # Convert response to dictionary if needed
+            response_dict = response.model_dump()
 
             # Add system response
             self.messages.append(Message(
