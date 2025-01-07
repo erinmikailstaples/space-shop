@@ -85,23 +85,22 @@ class State(rx.State):
             enhanced_text = self.enhance_text_with_openai(text_to_enhance)
 
             response += f"{enhanced_text}\n\n"
-        
+
         return response
 
     def enhance_text_with_openai(self, text: str) -> str:
-        import openai
+        from openai import OpenAI
+        
+        client = OpenAI(api_key=OPENAI_API_KEY)
 
-        openai.api_key = OPENAI_API_KEY
 
         try:
-            response = openai.Completion.create(
-                engine="text-davinci-003",
-                prompt=f"Enhance the following text to make it more engaging and informative to astronauts and space enthusiasts.:\n\n{text}",
-                max_tokens=150,
-                n=1,
-                stop=None,
-                temperature=0.7
-            )
+            response = client.completions.create(engine="text-davinci-003",
+            prompt=f"Enhance the following text to make it more engaging and informative to astronauts and space enthusiasts.:\n\n{text}",
+            max_tokens=150,
+            n=1,
+            stop=None,
+            temperature=0.7)
             enhanced_text = response.choices[0].text.strip()
             return enhanced_text
         except Exception as e:
@@ -112,17 +111,17 @@ class State(rx.State):
         pc = Pinecone(api_key=PINECONE_API_KEY)
         index = pc.Index("jupiter-moons")
         embeddings = OpenAIEmbeddings(api_key=OPENAI_API_KEY)
-        
+
         query_embedding = embeddings.embed_query(query_text)
-        
+
         results = index.query(
             vector=query_embedding,
             top_k=3,
             include_metadata=True
         )
-        
+
         print("Query Results:", results)  # Debugging line
-        
+
         return self.format_response(results)
 
     def handle_input_change(self, value: str):
@@ -138,7 +137,7 @@ class State(rx.State):
             text=user_message,
             is_user=True
         ))
-        
+
         # Clear input and show processing
         self.current_input = ""
         self.processing = True
@@ -146,7 +145,7 @@ class State(rx.State):
         try:
             # Get response from database
             response = self.query_database(user_message)
-            
+
             # Add system response
             self.messages.append(Message(
                 text=response,
@@ -155,5 +154,5 @@ class State(rx.State):
         except Exception as e:
             error_msg = f"I encountered an error while searching the database: {str(e)}"
             self.messages.append(Message(text=error_msg))
-        
+
         self.processing = False
