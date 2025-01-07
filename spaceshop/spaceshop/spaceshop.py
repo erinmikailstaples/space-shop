@@ -43,7 +43,7 @@ def index() -> rx.Component:
                             padding="1em",
                             border_radius="8px",
                             background=rx.cond(message.is_user, ACCENT_BLUE, SPACE_BLUE),
-                            margin_bottom="0.5em",
+                            margin_bottom="1em",
                         )
                     ),
                     align_items="start",

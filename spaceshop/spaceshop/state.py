@@ -35,10 +35,10 @@ styles = {
         "border": f"1px solid {GLOW_COLOR}",
         "border_radius": "5px",
         "color": TEXT_COLOR,
-        "margin_top": "1em",
-        "margin_bottom": "2em",
-        "max_height": "80vh",
-        "overflow_y": "auto"
+   "margin_top": "1em",
+    "margin_bottom": "2em",
+    "font_size": "1.2em",  # Increase font size for better readability
+    "height": "3em",  # Set a specific height if needed
     },
     "header": {
         "color": GLOW_COLOR,
@@ -73,11 +73,40 @@ class State(rx.State):
         response = "🛸 Based on my analysis of Jupiter's moons:\n\n"
         for match in results.matches:
             metadata = match.metadata
-            response += f"• About {metadata['moon_name']}: {metadata['title']}\n"
-            response += f"{metadata['Document Content']}\n"
-            response += f"Source: {metadata['source']}\n\n"
+            moon_name = metadata.get('moon_name', 'Unknown Moon')
+            title = metadata.get('title', 'No Title Available')
+            document_content = metadata.get('Document Content', 'No Content Available')
+            source = metadata.get('source', 'No Source Available')
+
+            # Construct the text to be enhanced
+            text_to_enhance = f"About {moon_name}: {title}. {document_content} Source: {source}"
+
+            # Call OpenAI API to enhance the text
+            enhanced_text = self.enhance_text_with_openai(text_to_enhance)
+
+            response += f"{enhanced_text}\n\n"
         
         return response
+
+    def enhance_text_with_openai(self, text: str) -> str:
+        import openai
+
+        openai.api_key = OPENAI_API_KEY
+
+        try:
+            response = openai.Completion.create(
+                engine="text-davinci-003",
+                prompt=f"Enhance the following text to make it more engaging and informative to astronauts and space enthusiasts.:\n\n{text}",
+                max_tokens=150,
+                n=1,
+                stop=None,
+                temperature=0.7
+            )
+            enhanced_text = response.choices[0].text.strip()
+            return enhanced_text
+        except Exception as e:
+            print(f"Error enhancing text with OpenAI: {e}")
+            return text  # Return original text if enhancement fails
 
     def query_database(self, query_text: str) -> str:
         pc = Pinecone(api_key=PINECONE_API_KEY)
@@ -91,6 +120,8 @@ class State(rx.State):
             top_k=3,
             include_metadata=True
         )
+        
+        print("Query Results:", results)  # Debugging line
         
         return self.format_response(results)
 
