@@ -94,15 +94,16 @@ class State(rx.State):
         openai.api_key = OPENAI_API_KEY
 
         try:
-            response = openai.Completion.create(
-                model="text-davinci-003",
-                prompt=f"Enhance the following text to make it more engaging and informative to astronauts and space enthusiasts:\n\n{text}",
+            response = openai.ChatCompletion.create(
+                model="gpt-3.5-turbo",
+                messages=[
+                    {"role": "system", "content": "You are a helpful assistant."},
+                    {"role": "user", "content": f"Enhance the following text to make it more engaging and informative to astronauts and space enthusiasts:\n\n{text}"}
+                ],
                 max_tokens=150,
-                n=1,
-                stop=None,
                 temperature=0.7
             )
-            enhanced_text = response.choices[0].text.strip()
+            enhanced_text = response['choices'][0]['message']['content'].strip()
             return enhanced_text
         except Exception as e:
             print(f"Error enhancing text with OpenAI: {e}")
