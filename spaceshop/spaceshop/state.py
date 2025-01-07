@@ -89,18 +89,19 @@ class State(rx.State):
         return response
 
     def enhance_text_with_openai(self, text: str) -> str:
-        from openai import OpenAI
-        
-        client = OpenAI(api_key=OPENAI_API_KEY)
+        import openai
 
+        openai.api_key = OPENAI_API_KEY
 
         try:
-            response = client.completions.create(engine="text-davinci-003",
-            prompt=f"Enhance the following text to make it more engaging and informative to astronauts and space enthusiasts.:\n\n{text}",
-            max_tokens=150,
-            n=1,
-            stop=None,
-            temperature=0.7)
+            response = openai.Completion.create(
+                model="text-davinci-003",
+                prompt=f"Enhance the following text to make it more engaging and informative to astronauts and space enthusiasts:\n\n{text}",
+                max_tokens=150,
+                n=1,
+                stop=None,
+                temperature=0.7
+            )
             enhanced_text = response.choices[0].text.strip()
             return enhanced_text
         except Exception as e:
