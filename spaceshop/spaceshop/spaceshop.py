@@ -1,7 +1,7 @@
 import reflex as rx
 from datetime import datetime
 from pinecone import Index
-from langchain_community.embeddings import OpenAIEmbeddings
+from langchain_openai import OpenAIEmbeddings
 from config import PINECONE_API_KEY, OPENAI_API_KEY
 
 # Import our existing styles

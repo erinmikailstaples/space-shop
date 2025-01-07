@@ -25,6 +25,8 @@ styles = {
         "padding": "2em",
         "box_shadow": f"0 0 20px {GLOW_COLOR}",
         "margin_bottom": "2em",
+        "max_height": "80vh",
+        "overflow_y": "auto",
     },
     "input": {
         "width": "100%",
@@ -34,6 +36,9 @@ styles = {
         "border_radius": "5px",
         "color": TEXT_COLOR,
         "margin_top": "1em",
+        "margin_bottom": "2em",
+        "max_height": "80vh",
+        "overflow_y": "auto"
     },
     "header": {
         "color": GLOW_COLOR,
