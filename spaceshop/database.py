@@ -29,21 +29,23 @@ if index_name not in pc.list_indexes().names():
 index = pc.Index(index_name)
 
 def create_and_store_embeddings(data):
-    embeddings = OpenAIEmbeddings(api_key=OPENAI_API_KEY)
+    embeddings = OpenAIEmbeddings()  # Will use OPENAI_API_KEY from environment
     
     for idx, row in data.iterrows():
-        # Using the correct column names from your TSV file
-        text = f"{row['Moon Name']}: {row['Document Title']} - {row['Document Content']}"
-        embedding = embeddings.embed_query(text)
-        
-        metadata = {
-            "moon_name": row['Moon Name'],
-            "title": row['Document Title'],
-            "source": row['Source URL']
-        }
-        
-        # Store with metadata
-        index.upsert(vectors=[(str(idx), embedding, metadata)])
+        try:
+            text = f"{row['Moon Name']}: {row['Document Title']} - {row['Document Content']}"
+            embedding = embeddings.embed_query(text)
+            
+            metadata = {
+                "moon_name": row['Moon Name'],
+                "title": row['Document Title'],
+                "source": row['Source URL']
+            }
+            
+            index.upsert(vectors=[(str(idx), embedding, metadata)])
+            print(f"Successfully embedded: {row['Moon Name']}")
+        except Exception as e:
+            print(f"Error processing {row['Moon Name']}: {e}")
 
 # Example usage
 if __name__ == "__main__":

@@ -10,6 +10,7 @@ from langchain.schema import Document
 from langchain_core.output_parsers import StrOutputParser
 from langchain_core.runnables import RunnablePassthrough
 from langchain.chat_models import ChatOpenAI
+from langchain.prompts import ChatPromptTemplate
 
 # Styles for our space dashboard
 DARK_BLUE = "#0d1b2a"
@@ -140,7 +141,7 @@ class State(rx.State):
         return response
 
     def enhance_text_with_openai(self, text: str) -> str:
-        client = OpenAI(api_key=OPENAI_API_KEY)
+        client = OpenAI()
 
         try:
             response = client.chat.completions.create(
@@ -158,8 +159,7 @@ class State(rx.State):
                 max_tokens=100,
                 temperature=0.7
             )
-            enhanced_text = response.choices[0].message.content.strip()
-            return enhanced_text
+            return response.choices[0].message.content.strip()
         except Exception as e:
             print(f"Error enhancing text with OpenAI: {e}")
             return text
@@ -168,10 +168,8 @@ class State(rx.State):
         try:
             print("Initializing components...")
             
-            # Initialize embeddings
-            embeddings = OpenAIEmbeddings(
-                openai_api_key=OPENAI_API_KEY
-            )
+            # Initialize embeddings with new syntax
+            embeddings = OpenAIEmbeddings()
             
             # Initialize Pinecone
             pc = Pinecone(
@@ -180,7 +178,7 @@ class State(rx.State):
             )
             index = pc.Index("jupiter-moons")
             
-            # Create a retriever function
+            # Create retriever function
             def retrieve_docs(query):
                 query_embedding = embeddings.embed_query(query)
                 results = index.query(
@@ -188,39 +186,38 @@ class State(rx.State):
                     top_k=3,
                     include_metadata=True
                 )
-                # Convert Pinecone results to LangChain documents
-                docs = [
+                return [
                     Document(
                         page_content=f"{match.metadata['moon_name']}: {match.metadata['Document Content']}",
                         metadata=match.metadata
                     )
                     for match in results.matches
                 ]
-                return docs
-            
-            # Get the RAG prompt from LangChain hub
-            prompt = hub.pull("rlm/rag-prompt")
-            
-            # Initialize the LLM
+
+            # Create prompt template
+            prompt = ChatPromptTemplate.from_messages([
+                ("system", "You are a helpful assistant that provides information about Jupiter's moons."),
+                ("human", "Question: {question}"),
+                ("human", "Context: {context}")
+            ])
+
+            # Initialize the LLM with new syntax
             llm = ChatOpenAI(
                 model="gpt-3.5-turbo",
                 temperature=0.7,
-                max_tokens=500
             )
-            
-            # Create the RAG chain
-            rag_chain = (
-                {"context": lambda x: retrieve_docs(x) | self.format_docs, 
-                 "question": RunnablePassthrough()}
+
+            # Create the chain
+            chain = (
+                {"context": retrieve_docs, "question": RunnablePassthrough()}
                 | prompt
                 | llm
                 | StrOutputParser()
             )
-            
+
             # Execute the chain
-            response = rag_chain.invoke(query_text)
-            return response
-            
+            return chain.invoke(query_text)
+
         except Exception as e:
             print(f"Detailed error in query_database: {str(e)}")
             import traceback
