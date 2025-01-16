@@ -1,10 +1,11 @@
 openai==1.12.0
-langchain-core==0.1.17
+langchain-core>=0.3.26,<0.4.0
 langchain==0.1.0
 langchain-community==0.0.13
-pydantic==1.10.13
+pydantic==2.7.1
 pinecone-client[grpc]==3.0.2
 pandas==2.2.0
 reflex==0.6.7
 python-dotenv==1.0.1
 langsmith==0.0.83
+promptquality
