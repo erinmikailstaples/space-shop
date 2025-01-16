@@ -71,22 +71,31 @@ class State(rx.State):
         if not results.matches:
             return "I couldn't find any relevant information about that in my database. Try asking about specific moons or their features!"
 
-        response = "🛸 Based on my analysis of Jupiter's moons:\n\n"
+        response = "🛸 Here's what I found about Jupiter's moons:\n\n"
+        
+        # Group information by moon name to consolidate multiple matches
+        moon_info = {}
         for match in results.matches:
             metadata = match.metadata
             moon_name = metadata.get('moon_name', 'Unknown Moon')
-            title = metadata.get('title', 'No Title Available')
-            document_content = metadata.get('Document Content', 'No Content Available')
-            source = metadata.get('source', 'No Source Available')
-
-            # Construct the text to be enhanced
-            text_to_enhance = f"About {moon_name}: {title}. {document_content}"
             
-            # Call OpenAI API to enhance the text
+            if moon_name not in moon_info:
+                moon_info[moon_name] = {
+                    'title': metadata.get('title', ''),
+                    'content': metadata.get('Document Content', ''),
+                    'score': match.score  # Use the relevance score from Pinecone
+                }
+
+        # Format the consolidated information
+        for moon_name, info in moon_info.items():
+            # Create a concise summary for the OpenAI enhancement
+            text_to_enhance = f"About {moon_name}: {info['title']}. {info['content']}"
+            
+            # Get enhanced description from OpenAI
             enhanced_text = self.enhance_text_with_openai(text_to_enhance)
             
-            response += f"{enhanced_text}\n"
-            response += f"Source: {source}\n\n"
+            # Add to response with proper formatting
+            response += f"• {enhanced_text}\n\n"
 
         return response
 
@@ -97,10 +106,16 @@ class State(rx.State):
             response = client.chat.completions.create(
                 model="gpt-3.5-turbo",
                 messages=[
-                    {"role": "system", "content": "You are a helpful assistant that provides clear, concise information about Jupiter's moons."},
-                    {"role": "user", "content": f"Enhance the following text to make it more engaging and informative:\n\n{text}"}
+                    {
+                        "role": "system", 
+                        "content": "You are a space expert providing concise, engaging information about Jupiter's moons. Keep responses brief but informative, focusing on the most interesting aspects. Avoid mentioning sources or references."
+                    },
+                    {
+                        "role": "user", 
+                        "content": f"Transform this information into a brief, engaging description:\n\n{text}"
+                    }
                 ],
-                max_tokens=150,
+                max_tokens=100,
                 temperature=0.7
             )
             enhanced_text = response.choices[0].message.content.strip()
