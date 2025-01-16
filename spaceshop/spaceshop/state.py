@@ -2,6 +2,7 @@ import reflex as rx
 from datetime import datetime
 from pinecone import Pinecone, Index
 from langchain_openai import OpenAIEmbeddings
+from langchain_community.chat_models import ChatOpenAI
 from config import PINECONE_API_KEY, OPENAI_API_KEY
 from openai import OpenAI
 import asyncio
@@ -9,8 +10,7 @@ from langchain import hub
 from langchain.schema import Document
 from langchain_core.output_parsers import StrOutputParser
 from langchain_core.runnables import RunnablePassthrough
-from langchain.chat_models import ChatOpenAI
-from langchain.prompts import ChatPromptTemplate
+from langchain_core.prompts import ChatPromptTemplate
 
 # Styles for our space dashboard
 DARK_BLUE = "#0d1b2a"
@@ -141,7 +141,7 @@ class State(rx.State):
         return response
 
     def enhance_text_with_openai(self, text: str) -> str:
-        client = OpenAI()
+        client = OpenAI(api_key=OPENAI_API_KEY)
 
         try:
             response = client.chat.completions.create(
@@ -159,7 +159,8 @@ class State(rx.State):
                 max_tokens=100,
                 temperature=0.7
             )
-            return response.choices[0].message.content.strip()
+            enhanced_text = response.choices[0].message.content.strip()
+            return enhanced_text
         except Exception as e:
             print(f"Error enhancing text with OpenAI: {e}")
             return text
@@ -168,17 +169,14 @@ class State(rx.State):
         try:
             print("Initializing components...")
             
-            # Initialize embeddings with new syntax
             embeddings = OpenAIEmbeddings()
             
-            # Initialize Pinecone
             pc = Pinecone(
                 api_key=PINECONE_API_KEY,
                 environment="gcp-starter"
             )
             index = pc.Index("jupiter-moons")
             
-            # Create retriever function
             def retrieve_docs(query):
                 query_embedding = embeddings.embed_query(query)
                 results = index.query(
@@ -193,31 +191,30 @@ class State(rx.State):
                     )
                     for match in results.matches
                 ]
-
-            # Create prompt template
+            
+            # Updated prompt template
             prompt = ChatPromptTemplate.from_messages([
-                ("system", "You are a helpful assistant that provides information about Jupiter's moons."),
+                ("system", "You are a knowledgeable assistant specializing in Jupiter's moons. Provide accurate, engaging information based on the given context."),
                 ("human", "Question: {question}"),
-                ("human", "Context: {context}")
+                ("human", "Here's what I know about this: {context}")
             ])
-
-            # Initialize the LLM with new syntax
+            
+            # Initialize LLM with community import
             llm = ChatOpenAI(
-                model="gpt-3.5-turbo",
                 temperature=0.7,
+                model="gpt-3.5-turbo"
             )
-
-            # Create the chain
+            
+            # Create and execute chain
             chain = (
-                {"context": retrieve_docs, "question": RunnablePassthrough()}
+                {"context": lambda x: self.format_docs(retrieve_docs(x)), "question": RunnablePassthrough()}
                 | prompt
                 | llm
                 | StrOutputParser()
             )
-
-            # Execute the chain
+            
             return chain.invoke(query_text)
-
+            
         except Exception as e:
             print(f"Detailed error in query_database: {str(e)}")
             import traceback
