@@ -5,6 +5,11 @@ from langchain_openai import OpenAIEmbeddings
 from config import PINECONE_API_KEY, OPENAI_API_KEY
 from openai import OpenAI
 import asyncio
+from langchain import hub
+from langchain.schema import Document
+from langchain_core.output_parsers import StrOutputParser
+from langchain_core.runnables import RunnablePassthrough
+from langchain.chat_models import ChatOpenAI
 
 # Styles for our space dashboard
 DARK_BLUE = "#0d1b2a"
@@ -109,31 +114,28 @@ class State(rx.State):
         if not results.matches:
             return "I couldn't find any relevant information about that in my database. Try asking about specific moons or their features!"
 
-        response = "🛸 Here's what I found about Jupiter's moons:\n\n"
-        
-        # Group information by moon name to consolidate multiple matches
+        # Group results by moon
         moon_info = {}
         for match in results.matches:
-            metadata = match.metadata
-            moon_name = metadata.get('moon_name', 'Unknown Moon')
-            
+            moon_name = match.metadata['moon_name']
             if moon_name not in moon_info:
-                moon_info[moon_name] = {
-                    'title': metadata.get('title', ''),
-                    'content': metadata.get('Document Content', ''),
-                    'score': match.score  # Use the relevance score from Pinecone
-                }
+                moon_info[moon_name] = []
+            moon_info[moon_name].append({
+                'title': match.metadata['title'],
+                'content': match.metadata['Document Content'],
+                'source': match.metadata['source']
+            })
 
-        # Format the consolidated information
-        for moon_name, info in moon_info.items():
-            # Create a concise summary for the OpenAI enhancement
-            text_to_enhance = f"About {moon_name}: {info['title']}. {info['content']}"
-            
-            # Get enhanced description from OpenAI
-            enhanced_text = self.enhance_text_with_openai(text_to_enhance)
-            
-            # Add to response with proper formatting
-            response += f"• {enhanced_text}\n\n"
+        # Format response
+        response = "🛸 Here's what I found about Jupiter's moons:\n\n"
+        for moon, info_list in moon_info.items():
+            response += f"About {moon}:\n"
+            for info in info_list:
+                enhanced_text = self.enhance_text_with_openai(
+                    f"{info['title']}: {info['content']}"
+                )
+                response += f"• {enhanced_text}\n"
+            response += "\n"
 
         return response
 
@@ -164,37 +166,69 @@ class State(rx.State):
 
     def query_database(self, query_text: str) -> str:
         try:
-            print("Initializing Pinecone...")
+            print("Initializing components...")
+            
+            # Initialize embeddings
+            embeddings = OpenAIEmbeddings(
+                openai_api_key=OPENAI_API_KEY
+            )
+            
+            # Initialize Pinecone
             pc = Pinecone(
                 api_key=PINECONE_API_KEY,
                 environment="gcp-starter"
             )
-            
-            print("Getting index...")
             index = pc.Index("jupiter-moons")
             
-            print("Creating embeddings...")
-            embeddings = OpenAIEmbeddings(
-                api_key=OPENAI_API_KEY,
-                model="text-embedding-ada-002"
+            # Create a retriever function
+            def retrieve_docs(query):
+                query_embedding = embeddings.embed_query(query)
+                results = index.query(
+                    vector=query_embedding,
+                    top_k=3,
+                    include_metadata=True
+                )
+                # Convert Pinecone results to LangChain documents
+                docs = [
+                    Document(
+                        page_content=f"{match.metadata['moon_name']}: {match.metadata['Document Content']}",
+                        metadata=match.metadata
+                    )
+                    for match in results.matches
+                ]
+                return docs
+            
+            # Get the RAG prompt from LangChain hub
+            prompt = hub.pull("rlm/rag-prompt")
+            
+            # Initialize the LLM
+            llm = ChatOpenAI(
+                model="gpt-3.5-turbo",
+                temperature=0.7,
+                max_tokens=500
             )
             
-            print("Generating query embedding...")
-            query_embedding = embeddings.embed_query(query_text)
-            
-            print("Querying index...")
-            results = index.query(
-                vector=query_embedding,
-                top_k=3,
-                include_metadata=True
+            # Create the RAG chain
+            rag_chain = (
+                {"context": lambda x: retrieve_docs(x) | self.format_docs, 
+                 "question": RunnablePassthrough()}
+                | prompt
+                | llm
+                | StrOutputParser()
             )
             
-            return self.format_response(results)
+            # Execute the chain
+            response = rag_chain.invoke(query_text)
+            return response
+            
         except Exception as e:
             print(f"Detailed error in query_database: {str(e)}")
             import traceback
             traceback.print_exc()
             return f"I encountered an error while searching the database: {str(e)}"
+
+    def format_docs(self, docs):
+        return "\n\n".join(doc.page_content for doc in docs)
 
     def handle_input_change(self, value: str):
         self.current_input = value
