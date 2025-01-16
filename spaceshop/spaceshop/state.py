@@ -1,8 +1,7 @@
 import reflex as rx
 from datetime import datetime
 from pinecone import Pinecone, Index
-from langchain_openai import OpenAIEmbeddings
-from langchain_community.chat_models import ChatOpenAI
+from langchain_openai import OpenAIEmbeddings, ChatOpenAI
 from config import PINECONE_API_KEY, OPENAI_API_KEY
 from openai import OpenAI
 import asyncio
@@ -165,28 +164,45 @@ class State(rx.State):
             print(f"Error enhancing text with OpenAI: {e}")
             return text
 
+    def format_docs(self, docs):
+        """Format documents for the prompt."""
+        return "\n\n".join(doc.page_content for doc in docs)
+
     def query_database(self, query_text: str) -> str:
         try:
             print("Initializing components...")
             
-            embeddings = OpenAIEmbeddings()
+            # Initialize embeddings with explicit API key
+            embeddings = OpenAIEmbeddings(
+                openai_api_key=OPENAI_API_KEY,
+                model="text-embedding-ada-002"  # Explicitly set the model
+            )
             
+            # Initialize Pinecone with proper environment
             pc = Pinecone(
                 api_key=PINECONE_API_KEY,
                 environment="gcp-starter"
             )
+            
+            # Get the index
             index = pc.Index("jupiter-moons")
             
+            # Create retriever function
             def retrieve_docs(query):
+                print(f"Generating embedding for query: {query}")
                 query_embedding = embeddings.embed_query(query)
+                
+                print("Querying Pinecone index...")
                 results = index.query(
                     vector=query_embedding,
                     top_k=3,
                     include_metadata=True
                 )
+                
+                print(f"Found {len(results.matches)} matches")
                 return [
                     Document(
-                        page_content=f"{match.metadata['moon_name']}: {match.metadata['Document Content']}",
+                        page_content=f"{match.metadata['moon_name']}: {match.metadata['title']} - {match.metadata.get('Document Content', '')}",
                         metadata=match.metadata
                     )
                     for match in results.matches
@@ -194,9 +210,11 @@ class State(rx.State):
             
             # Updated prompt template
             prompt = ChatPromptTemplate.from_messages([
-                ("system", "You are a knowledgeable assistant specializing in Jupiter's moons. Provide accurate, engaging information based on the given context."),
+                ("system", """You are a knowledgeable assistant specializing in Jupiter's moons. 
+                Provide accurate, engaging information based on the given context. Focus on the most 
+                interesting and relevant details while maintaining scientific accuracy."""),
                 ("human", "Question: {question}"),
-                ("human", "Here's what I know about this: {context}")
+                ("human", "Context: {context}")
             ])
             
             # Initialize LLM with community import
@@ -205,24 +223,28 @@ class State(rx.State):
                 model="gpt-3.5-turbo"
             )
             
-            # Create and execute chain
+            # Create the RAG chain
             chain = (
-                {"context": lambda x: self.format_docs(retrieve_docs(x)), "question": RunnablePassthrough()}
+                {
+                    "context": lambda x: self.format_docs(retrieve_docs(x)),
+                    "question": RunnablePassthrough()
+                }
                 | prompt
                 | llm
                 | StrOutputParser()
             )
             
-            return chain.invoke(query_text)
+            print("Executing chain...")
+            response = chain.invoke(query_text)
+            print("Chain execution complete")
+            
+            return response
             
         except Exception as e:
             print(f"Detailed error in query_database: {str(e)}")
             import traceback
             traceback.print_exc()
             return f"I encountered an error while searching the database: {str(e)}"
-
-    def format_docs(self, docs):
-        return "\n\n".join(doc.page_content for doc in docs)
 
     def handle_input_change(self, value: str):
         self.current_input = value
