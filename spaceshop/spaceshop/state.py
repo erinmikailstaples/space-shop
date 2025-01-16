@@ -36,10 +36,10 @@ styles = {
         "border": f"1px solid {GLOW_COLOR}",
         "border_radius": "5px",
         "color": TEXT_COLOR,
-   "margin_top": "1em",
-    "margin_bottom": "2em",
-    "font_size": "1.2em",  # Increase font size for better readability
-    "height": "3em",  # Set a specific height if needed
+        "margin_top": "1em",
+        "margin_bottom": "2em",
+        "font_size": "1.2em", 
+        "height": "3em", 
     },
     "header": {
         "color": GLOW_COLOR,
@@ -90,8 +90,6 @@ class State(rx.State):
         return response
 
     def enhance_text_with_openai(self, text: str) -> str:
-        from openai import OpenAI
-
         client = OpenAI(api_key=OPENAI_API_KEY)
 
         try:
@@ -145,9 +143,6 @@ class State(rx.State):
         try:
             # Get response from database
             response = self.query_database(user_message)
-
-            # Convert response to dictionary if needed
-            response_dict = response.model_dump()
 
             # Add system response
             self.messages.append(Message(
