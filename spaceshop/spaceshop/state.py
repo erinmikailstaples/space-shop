@@ -1,7 +1,7 @@
 import reflex as rx
 from datetime import datetime
 from pinecone import Pinecone, Index
-from langchain_community.embeddings import OpenAIEmbeddings
+from langchain_openai import OpenAIEmbeddings
 from config import PINECONE_API_KEY, OPENAI_API_KEY
 from openai import OpenAI
 
@@ -80,12 +80,13 @@ class State(rx.State):
             source = metadata.get('source', 'No Source Available')
 
             # Construct the text to be enhanced
-            text_to_enhance = f"About {moon_name}: {title}. {document_content} Source: {source}"
-
+            text_to_enhance = f"About {moon_name}: {title}. {document_content}"
+            
             # Call OpenAI API to enhance the text
             enhanced_text = self.enhance_text_with_openai(text_to_enhance)
-
-            response += f"{enhanced_text}\n\n"
+            
+            response += f"{enhanced_text}\n"
+            response += f"Source: {source}\n\n"
 
         return response
 
@@ -93,34 +94,41 @@ class State(rx.State):
         client = OpenAI(api_key=OPENAI_API_KEY)
 
         try:
-            response = client.completions.create(
+            response = client.chat.completions.create(
                 model="gpt-3.5-turbo",
-                prompt=f"Enhance the following text to make it more engaging and informative:\n\n{text}",
+                messages=[
+                    {"role": "system", "content": "You are a helpful assistant that provides clear, concise information about Jupiter's moons."},
+                    {"role": "user", "content": f"Enhance the following text to make it more engaging and informative:\n\n{text}"}
+                ],
                 max_tokens=150,
                 temperature=0.7
             )
-            enhanced_text = response.choices[0].text.strip()
+            enhanced_text = response.choices[0].message.content.strip()
             return enhanced_text
         except Exception as e:
             print(f"Error enhancing text with OpenAI: {e}")
             return text
 
     def query_database(self, query_text: str) -> str:
-        pc = Pinecone(api_key=PINECONE_API_KEY)
-        index = pc.Index("jupiter-moons")
-        embeddings = OpenAIEmbeddings(api_key=OPENAI_API_KEY)
-
-        query_embedding = embeddings.embed_query(query_text)
-
-        results = index.query(
-            vector=query_embedding,
-            top_k=3,
-            include_metadata=True
-        )
-
-        print("Query Results:", results)  # Debugging line
-
-        return self.format_response(results)
+        try:
+            pc = Pinecone(api_key=PINECONE_API_KEY)
+            index = pc.Index("jupiter-moons")
+            embeddings = OpenAIEmbeddings(api_key=OPENAI_API_KEY)
+            
+            query_embedding = embeddings.embed_query(query_text)
+            
+            results = index.query(
+                vector=query_embedding,
+                top_k=3,
+                include_metadata=True
+            )
+            
+            print("Query Results:", results)  # Debugging line
+            
+            return self.format_response(results)
+        except Exception as e:
+            print(f"Error querying database: {e}")
+            return f"I encountered an error while searching the database: {str(e)}"
 
     def handle_input_change(self, value: str):
         self.current_input = value
