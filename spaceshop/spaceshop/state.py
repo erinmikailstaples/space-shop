@@ -164,19 +164,32 @@ class State(rx.State):
 
     def query_database(self, query_text: str) -> str:
         try:
-            pc = Pinecone(api_key=PINECONE_API_KEY)
-            index = pc.Index("jupiter-moons")
-            embeddings = OpenAIEmbeddings(api_key=OPENAI_API_KEY)
+            # Initialize Pinecone with environment
+            pc = Pinecone(
+                api_key=PINECONE_API_KEY,
+                environment="gcp-starter" 
             
+            # Get the index
+            index = pc.Index("jupiter-moons")
+            
+            # Create embeddings
+            embeddings = OpenAIEmbeddings(
+                api_key=OPENAI_API_KEY,
+                model="text-embedding-ada-002"
+            )
+            
+            # Generate query embedding
             query_embedding = embeddings.embed_query(query_text)
             
+            # Query the index with proper parameters
             results = index.query(
                 vector=query_embedding,
                 top_k=3,
-                include_metadata=True
+                include_metadata=True,
+                namespace=""  # Add explicit empty namespace
             )
             
-            print("Query Results:", results)  # Debugging line
+            print("Query Results:", results)  # Keep debugging line
             
             return self.format_response(results)
         except Exception as e:

@@ -7,7 +7,10 @@ from config import PINECONE_API_KEY, OPENAI_API_KEY
 print(f"Using PINECONE_API_KEY: {PINECONE_API_KEY is not None}")
 
 # Initialize Pinecone
-pc = Pinecone(api_key=PINECONE_API_KEY)
+pc = Pinecone(
+    api_key=PINECONE_API_KEY,
+    environment="gcp-starter"  # Required for free tier
+)
 
 # Create an index with proper spec for free tier
 index_name = "jupiter-moons"
