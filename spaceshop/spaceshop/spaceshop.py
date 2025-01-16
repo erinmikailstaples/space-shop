@@ -12,6 +12,10 @@ from .state import (
 
 def index() -> rx.Component:
     return rx.box(
+        # Title and Clock
+        rx.heading("Explorer Atlas", style=styles["title"]),
+        rx.text(State.current_time, style=styles["subtitle"]),
+        
         # Chat messages display
         rx.box(
             rx.vstack(
@@ -40,10 +44,23 @@ def index() -> rx.Component:
             style=styles["chat_container"]
         ),
         
+        # Loading overlay
+        rx.cond(
+            State.processing,
+            rx.box(
+                rx.vstack(
+                    rx.spinner(size="3", color=GLOW_COLOR),
+                    rx.text("Exploring the cosmos...", color=TEXT_COLOR),
+                    rx.text("✨ ⭐️ 🌟 ✨", font_size="2em"),
+                ),
+                style=styles["loading"]
+            )
+        ),
+        
         # Input area
         rx.box(
             rx.hstack(
-                rx.input(
+                rx.text_area(
                     value=State.current_input,
                     placeholder="Ask about Jupiter's moons...",
                     on_change=State.handle_input_change,
@@ -63,7 +80,8 @@ def index() -> rx.Component:
             ),
             style=styles["input_container"]
         ),
-        style=styles["dashboard"]
+        style=styles["dashboard"],
+        on_mount=State.update_time_periodically
     )
 
 # Add state and page to the app

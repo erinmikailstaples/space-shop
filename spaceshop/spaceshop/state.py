@@ -4,6 +4,7 @@ from pinecone import Pinecone, Index
 from langchain_openai import OpenAIEmbeddings
 from config import PINECONE_API_KEY, OPENAI_API_KEY
 from openai import OpenAI
+import asyncio
 
 # Styles for our space dashboard
 DARK_BLUE = "#0d1b2a"
@@ -21,16 +22,35 @@ styles = {
         "color": TEXT_COLOR,
         "font_family": "Space Mono, monospace",
     },
+    "title": {
+        "color": GLOW_COLOR,
+        "text_align": "center",
+        "font_size": "2.5em",
+        "margin_top": "1em",
+        "text_shadow": f"0 0 10px {GLOW_COLOR}",
+    },
+    "subtitle": {
+        "color": TEXT_COLOR,
+        "text_align": "center",
+        "font_size": "1.2em",
+        "margin_bottom": "2em",
+        "opacity": "0.8",
+    },
     "chat_container": {
         "flex": "1",
         "overflow_y": "auto",
         "padding": "2em",
+        "margin_bottom": "80px",  # Add space for input container
     },
     "input_container": {
+        "position": "fixed",
+        "bottom": "0",
+        "left": "0",
         "width": "100%",
         "background": SPACE_BLUE,
         "padding": "1em",
         "border_top": f"1px solid {ACCENT_BLUE}",
+        "z_index": "1000",
     },
     "input": {
         "width": "100%",
@@ -40,6 +60,8 @@ styles = {
         "border_radius": "5px",
         "color": TEXT_COLOR,
         "font_size": "1.2em",
+        "min_height": "100px",  # Increased height
+        "resize": "vertical",   # Allow vertical resizing
     },
     "button": {
         "background": GLOW_COLOR,
@@ -48,6 +70,18 @@ styles = {
         "border_radius": "5px",
         "margin_left": "1em",
         "_hover": {"opacity": 0.8},
+    },
+    "loading": {
+        "position": "fixed",
+        "top": "50%",
+        "left": "50%",
+        "transform": "translate(-50%, -50%)",
+        "background": f"rgba(27, 38, 59, 0.9)",  # SPACE_BLUE with opacity
+        "padding": "2em",
+        "border_radius": "15px",
+        "text_align": "center",
+        "z_index": "2000",
+        "backdrop_filter": "blur(4px)",
     }
 }
 
@@ -59,10 +93,17 @@ class Message(rx.Base):
 
 class State(rx.State):
     messages: list[Message] = []
-    current_time: str = datetime.now().strftime("%H:%M:%S")
+    current_time: str = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
     system_status: str = "ONLINE"
     processing: bool = False
     current_input: str = ""
+
+    @rx.event(background=True)
+    async def update_time_periodically(self):
+        while True:
+            async with self:
+                self.current_time = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+            await asyncio.sleep(1)
 
     def format_response(self, results) -> str:
         if not results.matches:
@@ -146,7 +187,8 @@ class State(rx.State):
         self.current_input = value
 
     async def handle_submit(self, key_event=None):
-        if key_event is not None and key_event.key != "Enter":
+        # Check if this is a keyboard event and not Enter key
+        if isinstance(key_event, dict) and key_event.get("key") != "Enter":
             return
         
         if not self.current_input.strip():
