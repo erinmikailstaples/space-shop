@@ -175,8 +175,9 @@ class State(rx.State):
             
             print("Creating embeddings...")
             embeddings = OpenAIEmbeddings(
-                openai_api_key=OPENAI_API_KEY,
-                model="text-embedding-ada-002"
+                api_key=OPENAI_API_KEY,
+                model="text-embedding-ada-002",
+                client=None
             )
             
             print("Generating query embedding...")

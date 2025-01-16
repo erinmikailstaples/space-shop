@@ -1,8 +1,7 @@
 openai==1.12.0
-langchain==0.1.0
 langchain-openai==0.0.5
 langchain-community==0.0.10
-langchain-core==0.1.0
+langchain-core>=0.1.16,<0.2
 pydantic>=2.5.2,<3.0.0
 pinecone-client[grpc]==3.0.2
 python-dotenv==1.0.1
