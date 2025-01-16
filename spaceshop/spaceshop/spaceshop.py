@@ -12,54 +12,42 @@ from .state import (
 
 def index() -> rx.Component:
     return rx.box(
-        rx.vstack(
-            # Header
-            rx.heading("JUPITER MOONS NAVIGATION SYSTEM", style=styles["header"]),
-            
-            # Status Bar
-            rx.box(
-                rx.hstack(
-                    rx.text(f"System Status: {State.system_status}"),
-                    rx.text(f"Stardate: {State.current_time}"),
-                ),
-                style=styles["status"]
-            ),
-            
-            # Chat messages display
-            rx.box(
-                rx.vstack(
-                    rx.foreach(
-                        State.messages,
-                        lambda message: rx.box(
-                            rx.text(
-                                rx.cond(
-                                    message.is_user,
-                                    f"You: {message.text}",
-                                    f"🛸 AI: {message.text}"
-                                ),
-                                color=rx.cond(message.is_user, GLOW_COLOR, TEXT_COLOR),
+        # Chat messages display
+        rx.box(
+            rx.vstack(
+                rx.foreach(
+                    State.messages,
+                    lambda message: rx.box(
+                        rx.text(
+                            rx.cond(
+                                message.is_user,
+                                f"You: {message.text}",
+                                f"🛸 AI: {message.text}"
                             ),
-                            width="100%",
-                            padding="1em",
-                            border_radius="8px",
-                            background=rx.cond(message.is_user, ACCENT_BLUE, SPACE_BLUE),
-                            margin_bottom="1em",
-                        )
-                    ),
-                    align_items="start",
-                    width="100%",
-                    overflow_y="auto",
-                    max_height="60vh",
+                            color=rx.cond(message.is_user, GLOW_COLOR, TEXT_COLOR),
+                        ),
+                        width="100%",
+                        padding="1em",
+                        border_radius="8px",
+                        background=rx.cond(message.is_user, ACCENT_BLUE, SPACE_BLUE),
+                        margin_bottom="1em",
+                    )
                 ),
-                style=styles["terminal"]
+                align_items="start",
+                width="100%",
+                height="100%",
             ),
-            
-            # Input area
+            style=styles["chat_container"]
+        ),
+        
+        # Input area
+        rx.box(
             rx.hstack(
                 rx.input(
                     value=State.current_input,
                     placeholder="Ask about Jupiter's moons...",
                     on_change=State.handle_input_change,
+                    on_key_down=State.handle_submit,
                     is_disabled=State.processing,
                     style=styles["input"]
                 ),
@@ -67,17 +55,13 @@ def index() -> rx.Component:
                     "Send",
                     on_click=State.handle_submit,
                     is_disabled=State.processing,
-                    background=GLOW_COLOR,
-                    color=DARK_BLUE,
-                    _hover={"opacity": 0.8}
+                    style=styles["button"]
                 ),
+                width="100%",
+                max_width="1200px",
+                margin="0 auto",
             ),
-            rx.cond(State.processing, rx.spinner(), None),
-            
-            spacing="4",
-            width="100%",
-            max_width="800px",
-            margin="0 auto",
+            style=styles["input_container"]
         ),
         style=styles["dashboard"]
     )

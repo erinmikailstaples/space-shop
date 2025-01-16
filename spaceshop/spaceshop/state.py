@@ -16,18 +16,21 @@ styles = {
     "dashboard": {
         "background": DARK_BLUE,
         "min_height": "100vh",
-        "padding": "2em",
+        "display": "flex",
+        "flex_direction": "column",
         "color": TEXT_COLOR,
         "font_family": "Space Mono, monospace",
     },
-    "terminal": {
-        "background": SPACE_BLUE,
-        "border_radius": "10px",
-        "padding": "2em",
-        "box_shadow": f"0 0 20px {GLOW_COLOR}",
-        "margin_bottom": "2em",
-        "max_height": "80vh",
+    "chat_container": {
+        "flex": "1",
         "overflow_y": "auto",
+        "padding": "2em",
+    },
+    "input_container": {
+        "width": "100%",
+        "background": SPACE_BLUE,
+        "padding": "1em",
+        "border_top": f"1px solid {ACCENT_BLUE}",
     },
     "input": {
         "width": "100%",
@@ -36,21 +39,15 @@ styles = {
         "border": f"1px solid {GLOW_COLOR}",
         "border_radius": "5px",
         "color": TEXT_COLOR,
-        "margin_top": "1em",
-        "margin_bottom": "2em",
-        "font_size": "1.2em", 
-        "height": "3em", 
+        "font_size": "1.2em",
     },
-    "header": {
-        "color": GLOW_COLOR,
-        "text_align": "center",
-        "margin_bottom": "1em",
-        "text_shadow": f"0 0 10px {GLOW_COLOR}",
-    },
-    "status": {
-        "display": "flex",
-        "justify_content": "space-between",
-        "margin_bottom": "1em",
+    "button": {
+        "background": GLOW_COLOR,
+        "color": DARK_BLUE,
+        "padding": "1em 2em",
+        "border_radius": "5px",
+        "margin_left": "1em",
+        "_hover": {"opacity": 0.8},
     }
 }
 
@@ -148,26 +145,24 @@ class State(rx.State):
     def handle_input_change(self, value: str):
         self.current_input = value
 
-    async def handle_submit(self):
+    async def handle_submit(self, key_event=None):
+        if key_event is not None and key_event.key != "Enter":
+            return
+        
         if not self.current_input.strip():
             return
 
-        # Store the user's message
         user_message = self.current_input
         self.messages.append(Message(
             text=user_message,
             is_user=True
         ))
-
-        # Clear input and show processing
+        
         self.current_input = ""
         self.processing = True
 
         try:
-            # Get response from database
             response = self.query_database(user_message)
-
-            # Add system response
             self.messages.append(Message(
                 text=response,
                 is_user=False
