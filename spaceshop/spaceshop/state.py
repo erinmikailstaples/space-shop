@@ -164,36 +164,39 @@ class State(rx.State):
 
     def query_database(self, query_text: str) -> str:
         try:
-            # Initialize Pinecone with environment
+            print("Initializing Pinecone...")
             pc = Pinecone(
                 api_key=PINECONE_API_KEY,
-                environment="gcp-starter" 
-            
-            # Get the index
-            index = pc.Index("jupiter-moons")
-            
-            # Create embeddings
-            embeddings = OpenAIEmbeddings(
-                api_key=OPENAI_API_KEY,
-                model="text-embedding-ada-002"
+                environment="gcp-starter"
             )
             
-            # Generate query embedding
+            print("Getting index...")
+            index = pc.Index("jupiter-moons")
+            
+            print("Creating embeddings...")
+            embeddings = OpenAIEmbeddings(
+                openai_api_key=OPENAI_API_KEY,
+                model="text-embedding-ada-002",
+                openai_api_base="https://api.openai.com/v1",
+                chunk_size=1000,
+                max_retries=3
+            )
+            
+            print("Generating query embedding...")
             query_embedding = embeddings.embed_query(query_text)
             
-            # Query the index with proper parameters
+            print("Querying index...")
             results = index.query(
                 vector=query_embedding,
                 top_k=3,
-                include_metadata=True,
-                namespace=""  # Add explicit empty namespace
+                include_metadata=True
             )
-            
-            print("Query Results:", results)  # Keep debugging line
             
             return self.format_response(results)
         except Exception as e:
-            print(f"Error querying database: {e}")
+            print(f"Detailed error in query_database: {str(e)}")
+            import traceback
+            traceback.print_exc()
             return f"I encountered an error while searching the database: {str(e)}"
 
     def handle_input_change(self, value: str):
